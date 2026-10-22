@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# GENERATED from php2shell_check/ by tools/build-single-file.py — do not edit
 """php2shell-check: is your site exposed to the October 2026 PHP flaws (php2shell)?
 
     python3 php2shell_check.py example.com
@@ -6,7 +7,7 @@
 
 Reads what a site's home page shows anyone (its headers, its generator tag, the paths of
 the files it loads), after its redirects, plus a few public WordPress pages on WordPress
-hosts of the same domain, and sets what it read against the advisories shipped below.
+hosts of the same domain, and sets what it read against the advisories built into it.
 GET and HEAD only, at most --max-requests requests, every one listed in the answer. It
 never sends a form or a password, never asks for a secret file, never lists users, and it
 does not test for the flaw.
@@ -21,6 +22,9 @@ of its addresses is not public (loopback, private, link-local, CGNAT, multicast,
 cloud metadata; IPv4 inside IPv6 too), and the connection goes to the very address checked.
 Every redirect is checked again. --allow-private lifts the private-address rules for a
 check of your own internal site (cloud metadata, multicast and unspecified stay refused).
+
+The source is the package php2shell_check/ (one module per concern); the single file
+php2shell_check.py is generated from it by tools/build-single-file.py.
 
 Python 3.9+, standard library only. Derived from Skald's public site check
 (github.com/spcaeo/skald), relicensed MIT by its authors.
@@ -46,6 +50,9 @@ from collections import Counter
 from datetime import datetime, timezone
 from urllib.parse import urljoin, urlsplit
 
+
+# ------------------------------------------------------------------ safety.py
+
 __version__ = "1.0.0"
 HOME = "https://github.com/spcaeo/php2shell-check"
 USER_AGENT = f"php2shell-check/{__version__} (+{HOME})"
@@ -61,48 +68,6 @@ MAX_ADDRESSES = 2          # addresses tried per name, in the resolver's order
 MAX_URL = 500
 PORTS = {"http": 80, "https": 443}
 REDIRECTS = (301, 302, 303, 307, 308)
-
-# The advisories (also in advisories.json in the repo; --advisories-url loads a newer one).
-ADVISORIES = {
-    "schema": 1,
-    "updated": "2026-10-21",
-    "about": "Advisories php2shell-check matches against what a site shows. Facts only from the vendor's own advisory. Newer lists: https://github.com/spcaeo/php2shell-check/blob/main/advisories.json",
-    "advisories": [
-        {"id": "php-2026-10-21", "product": "php", "cves": ["CVE-2026-109618", "CVE-2026-109619"],
-         "title": "PHP: unauthenticated remote code execution", "severity": "critical",
-         "score": "CVSS v4 9.2", "published": "2026-10-21", "branch": "minor",
-         "fixed": {"8.5": "8.5.12", "8.4": "8.4.27", "8.3": "8.3.36", "8.2": "8.2.35"},
-         "no_fix_below": "8.2",
-         "no_fix_words": "PHP 8.1 and older have no official release with the fix; only source backports exist for 7.4, 8.0 and 8.1.",
-         "affected": "Sites run by PHP-FPM, mod_php (the highest risk), php-cgi, FrankenPHP or LiteSpeed.",
-         "summary": "A flaw in PHP lets anyone on the internet run code on the server, without signing in.",
-         "action": "Update PHP to the fixed release of its branch, then restart PHP (the FPM pool or the web server).",
-         "mitigations": [
-             "Set memory_limit=-1 through php_admin_value in the pool or virtual host.",
-             "Set post_max_size to 8M (32M on a site that takes uploads).",
-             "Set session.upload_progress.enabled=0, then restart the PHP workers.",
-             "On PHP 8.5, set fatal_error_backtraces=0.",
-             "At the proxy, limit the request size, the number of form fields and the number of multipart parts."],
-         "mitigations_note": "These reduce the exposure; they do not make a site safe. Update.",
-         "also_known_as": "php2shell",
-         "firewall_notes": [
-             {"product": "cloudflare",
-              "words": "Cloudflare says it deployed firewall (WAF) rules against php2shell on 21 October 2026 at 03:02 UTC, on every plan with its WAF, the Free plan included, and that customers should patch even with these protections.",
-              "source": "https://blog.cloudflare.com/php-vulnerabilities-waf-protection/"}],
-         "sources": ["https://www.php.net/archive/2026.php#2026-10-21-5",
-                     "https://www.php.net/archive/2026.php#2026-10-20-1"]},
-        {"id": "nodejs-2026-10", "product": "nodejs", "cves": ["CVE-2026-111497"],
-         "title": "Node.js October 2026 security releases", "severity": "high",
-         "score": "highest of ten fixes", "published": "2026-10-21", "branch": "major",
-         "fixed": {"22": "22.23.4", "24": "24.22.1", "26": "26.12.1"}, "no_fix_below": "22",
-         "no_fix_words": "Node.js branches that have reached end of life get no fix: move to a supported branch (22, 24 or 26).",
-         "affected": "Every Node.js server on a branch below the fixed release, a Next.js site's included.",
-         "summary": "The most serious flaw, a Brotli decoder out-of-bounds write (CVE-2026-111497), can let a crafted request run code on the server; others are DNS NUL truncation, TLS hostname verification and keep-alive issues.",
-         "action": "Update Node.js to the fixed release of its branch, rebuild the app's image if it runs in a container, and restart it.",
-         "mitigations": [], "mitigations_note": "",
-         "sources": ["https://nodejs.org/en/blog/vulnerability/october-2026-security-releases"]},
-    ],
-}
 
 
 class Refused(ValueError):
@@ -305,175 +270,7 @@ def host_of(url: str) -> str:
         return ""
 
 
-# ------------------------------------------------------------------ fetching
-
-class _PinnedHTTP(http.client.HTTPConnection):
-    def __init__(self, host, address, port, timeout):
-        super().__init__(host, port, timeout=timeout)
-        self._address = address
-
-    def connect(self):
-        self.sock = socket.create_connection((self._address, self.port), self.timeout)
-
-
-class _PinnedHTTPS(http.client.HTTPSConnection):
-    def __init__(self, host, address, port, timeout):
-        self._ctx = ssl.create_default_context()
-        super().__init__(host, port, timeout=timeout, context=self._ctx)
-        self._address = address
-
-    def connect(self):
-        raw = socket.create_connection((self._address, self.port), self.timeout)
-        try:
-            self.sock = self._ctx.wrap_socket(raw, server_hostname=self.host)
-        except BaseException:
-            raw.close()
-            raise
-
-
-def open_pinned(scheme, host, address, port, method, target, timeout, max_bytes, agent=USER_AGENT):
-    """One request to `address`, named `host` (Host header and TLS name). Tests replace this."""
-    conn = (_PinnedHTTPS if scheme == "https" else _PinnedHTTP)(host, address, port, timeout)
-    shown = host if port == PORTS[scheme] else f"{host}:{port}"
-    try:
-        conn.request(method, target, headers={
-            "Host": shown, "User-Agent": agent, "Accept-Encoding": "identity",
-            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", "Connection": "close"})
-        res = conn.getresponse()
-        headers: dict = {}
-        for name, value in res.getheaders():
-            headers.setdefault(name.lower(), []).append(value)
-        body = res.read(max_bytes) if method == "GET" else b""
-        not_after = None
-        if scheme == "https":
-            try:
-                not_after = (conn.sock.getpeercert() or {}).get("notAfter")
-            except (AttributeError, ValueError, OSError):
-                pass
-        return Answer(res.status, headers, body, f"{scheme}://{shown}{target}", address, not_after)
-    finally:
-        conn.close()
-
-
-def _words(why) -> str:
-    if isinstance(why, (socket.timeout, TimeoutError)):
-        return "it did not answer in time"
-    if isinstance(why, ssl.SSLCertVerificationError):
-        return "its HTTPS certificate is not valid for this name"
-    if isinstance(why, ssl.SSLError):
-        return "its HTTPS connection failed"
-    if isinstance(why, ConnectionRefusedError):
-        return "it refused the connection"
-    if isinstance(why, http.client.HTTPException):
-        return "its answer could not be read"
-    return "the connection failed"
-
-
-class Budget:
-    """The check's limits (requests, seconds, the User-Agent, the address rules) and its log."""
-
-    def __init__(self, fetches=MAX_FETCHES, timeout=TIMEOUT, seconds=None, ua=USER_AGENT,
-                 allow_private=False, clock=time.monotonic):
-        self.fetches, self.used, self.clock, self.timeout = fetches, 0, clock, timeout
-        self.ua, self.allow_private = ua, allow_private
-        self.end = clock() + (seconds if seconds is not None else timeout * max(fetches, 1) + 5)
-        self.log: list = []
-
-    def seconds(self) -> float:
-        left = min(self.timeout, self.end - self.clock())
-        if left <= 0.2:
-            raise Unreachable("it did not answer in time")
-        return left
-
-    def take(self) -> None:
-        if self.used >= self.fetches:
-            raise Spent()
-        self.seconds()
-        self.used += 1
-
-    def note(self, method, url, got=None, error=None) -> None:
-        row = {"method": method, "url": url[:300], "status": None, "bytes": None,
-               "location": None, "error": error}
-        if got is not None:
-            row["status"] = got.status
-            if method == "GET":
-                row["bytes"] = len(got.body)
-            else:
-                length = (got.headers.get("content-length") or [""])[0]
-                row["bytes"] = int(length) if length.isdigit() else None
-            row["location"] = (got.headers.get("location") or [""])[0].strip()[:300] or None
-        self.log.append(row)
-
-
-def get(url: str, method: str, budget: Budget) -> Answer:
-    """One request, no redirect followed: every rule checked, the name resolved once and the
-    connection made to the address that passed (no second lookup to rebind). Logged."""
-    try:
-        scheme, host, port, path = check_url(url)
-        why = host_refused(host, budget.allow_private)
-        if why:
-            raise Refused(why)
-        addresses = resolve(host, port, budget.allow_private)
-    except (Refused, Unreachable) as why:
-        budget.note(method, url, error=str(why))
-        raise
-    try:
-        budget.take()
-    except Spent:
-        budget.note(method, url, error=f"not fetched: the limit of {budget.fetches} requests")
-        raise
-    except Unreachable as why:
-        budget.note(method, url, error=str(why))
-        raise
-    last = None
-    for address in addresses[:MAX_ADDRESSES]:
-        try:
-            got = open_pinned(scheme, host, address, port, method, path, budget.seconds(), MAX_BYTES,
-                              agent=budget.ua)
-            budget.note(method, url, got)
-            return got
-        except ssl.SSLCertVerificationError as err:
-            budget.note(method, url, error=_words(err))
-            raise Unreachable(_words(err)) from None
-        except (OSError, http.client.HTTPException) as err:
-            last = err
-    words = _words(last) if last else "the connection failed"
-    budget.note(method, url, error=words)
-    raise Unreachable(words)
-
-
-def location(got, base: str):
-    if got.status not in REDIRECTS:
-        return None
-    loc = (got.headers.get("location") or [""])[0].strip()
-    return urljoin(got.url or base, loc) if loc else None
-
-
-def follow(url: str, budget: Budget) -> Answer:
-    """A GET at the end of at most MAX_REDIRECTS redirects, each hop checked as `get`."""
-    for hop in range(MAX_REDIRECTS + 1):
-        got = get(url, "GET", budget)
-        nxt = location(got, url)
-        if not nxt:
-            return got
-        if hop == MAX_REDIRECTS:
-            break
-        url = nxt
-    raise Refused(f"It redirected more than {MAX_REDIRECTS} times.")
-
-
-CHALLENGE = (b"challenge-platform", b"just a moment...", b"attention required!",
-             b"cf-browser-verification", b"captcha", b"checking your browser")
-
-
-def challenged(got) -> bool:
-    """A bot challenge (Cloudflare's and the like) answered instead of the page."""
-    if (got.headers.get("cf-mitigated") or [""])[0].strip().lower() == "challenge":
-        return True
-    return got.status in (403, 429, 503) and any(m in got.body[:30000].lower() for m in CHALLENGE)
-
-
-# ------------------------------------------------------------------ what a page proves
+# ------------------------------------------------------------------ detect.py
 
 PATH_CHARS = "[-A-Za-z0-9._~%/+,;=:@&?#!$*]*"      # the same in Python and in grep -E
 NAMES = {
@@ -798,6 +595,174 @@ def runtimes(found: list) -> list:
     return out
 
 
+# ------------------------------------------------------------------ fetch.py
+
+class _PinnedHTTP(http.client.HTTPConnection):
+    def __init__(self, host, address, port, timeout):
+        super().__init__(host, port, timeout=timeout)
+        self._address = address
+
+    def connect(self):
+        self.sock = socket.create_connection((self._address, self.port), self.timeout)
+
+
+class _PinnedHTTPS(http.client.HTTPSConnection):
+    def __init__(self, host, address, port, timeout):
+        self._ctx = ssl.create_default_context()
+        super().__init__(host, port, timeout=timeout, context=self._ctx)
+        self._address = address
+
+    def connect(self):
+        raw = socket.create_connection((self._address, self.port), self.timeout)
+        try:
+            self.sock = self._ctx.wrap_socket(raw, server_hostname=self.host)
+        except BaseException:
+            raw.close()
+            raise
+
+
+def open_pinned(scheme, host, address, port, method, target, timeout, max_bytes, agent=USER_AGENT):
+    """One request to `address`, named `host` (Host header and TLS name). Tests replace this."""
+    conn = (_PinnedHTTPS if scheme == "https" else _PinnedHTTP)(host, address, port, timeout)
+    shown = host if port == PORTS[scheme] else f"{host}:{port}"
+    try:
+        conn.request(method, target, headers={
+            "Host": shown, "User-Agent": agent, "Accept-Encoding": "identity",
+            "Accept": "text/html,application/xhtml+xml;q=0.9,*/*;q=0.5", "Connection": "close"})
+        res = conn.getresponse()
+        headers: dict = {}
+        for name, value in res.getheaders():
+            headers.setdefault(name.lower(), []).append(value)
+        body = res.read(max_bytes) if method == "GET" else b""
+        not_after = None
+        if scheme == "https":
+            try:
+                not_after = (conn.sock.getpeercert() or {}).get("notAfter")
+            except (AttributeError, ValueError, OSError):
+                pass
+        return Answer(res.status, headers, body, f"{scheme}://{shown}{target}", address, not_after)
+    finally:
+        conn.close()
+
+
+def _words(why) -> str:
+    if isinstance(why, (socket.timeout, TimeoutError)):
+        return "it did not answer in time"
+    if isinstance(why, ssl.SSLCertVerificationError):
+        return "its HTTPS certificate is not valid for this name"
+    if isinstance(why, ssl.SSLError):
+        return "its HTTPS connection failed"
+    if isinstance(why, ConnectionRefusedError):
+        return "it refused the connection"
+    if isinstance(why, http.client.HTTPException):
+        return "its answer could not be read"
+    return "the connection failed"
+
+
+class Budget:
+    """The check's limits (requests, seconds, the User-Agent, the address rules) and its log."""
+
+    def __init__(self, fetches=MAX_FETCHES, timeout=TIMEOUT, seconds=None, ua=USER_AGENT,
+                 allow_private=False, clock=time.monotonic):
+        self.fetches, self.used, self.clock, self.timeout = fetches, 0, clock, timeout
+        self.ua, self.allow_private = ua, allow_private
+        self.end = clock() + (seconds if seconds is not None else timeout * max(fetches, 1) + 5)
+        self.log: list = []
+
+    def seconds(self) -> float:
+        left = min(self.timeout, self.end - self.clock())
+        if left <= 0.2:
+            raise Unreachable("it did not answer in time")
+        return left
+
+    def take(self) -> None:
+        if self.used >= self.fetches:
+            raise Spent()
+        self.seconds()
+        self.used += 1
+
+    def note(self, method, url, got=None, error=None) -> None:
+        row = {"method": method, "url": url[:300], "status": None, "bytes": None,
+               "location": None, "error": error}
+        if got is not None:
+            row["status"] = got.status
+            if method == "GET":
+                row["bytes"] = len(got.body)
+            else:
+                length = (got.headers.get("content-length") or [""])[0]
+                row["bytes"] = int(length) if length.isdigit() else None
+            row["location"] = (got.headers.get("location") or [""])[0].strip()[:300] or None
+        self.log.append(row)
+
+
+def get(url: str, method: str, budget: Budget) -> Answer:
+    """One request, no redirect followed: every rule checked, the name resolved once and the
+    connection made to the address that passed (no second lookup to rebind). Logged."""
+    try:
+        scheme, host, port, path = check_url(url)
+        why = host_refused(host, budget.allow_private)
+        if why:
+            raise Refused(why)
+        addresses = resolve(host, port, budget.allow_private)
+    except (Refused, Unreachable) as why:
+        budget.note(method, url, error=str(why))
+        raise
+    try:
+        budget.take()
+    except Spent:
+        budget.note(method, url, error=f"not fetched: the limit of {budget.fetches} requests")
+        raise
+    except Unreachable as why:
+        budget.note(method, url, error=str(why))
+        raise
+    last = None
+    for address in addresses[:MAX_ADDRESSES]:
+        try:
+            got = open_pinned(scheme, host, address, port, method, path, budget.seconds(), MAX_BYTES,
+                              agent=budget.ua)
+            budget.note(method, url, got)
+            return got
+        except ssl.SSLCertVerificationError as err:
+            budget.note(method, url, error=_words(err))
+            raise Unreachable(_words(err)) from None
+        except (OSError, http.client.HTTPException) as err:
+            last = err
+    words = _words(last) if last else "the connection failed"
+    budget.note(method, url, error=words)
+    raise Unreachable(words)
+
+
+def location(got, base: str):
+    if got.status not in REDIRECTS:
+        return None
+    loc = (got.headers.get("location") or [""])[0].strip()
+    return urljoin(got.url or base, loc) if loc else None
+
+
+def follow(url: str, budget: Budget) -> Answer:
+    """A GET at the end of at most MAX_REDIRECTS redirects, each hop checked as `get`."""
+    for hop in range(MAX_REDIRECTS + 1):
+        got = get(url, "GET", budget)
+        nxt = location(got, url)
+        if not nxt:
+            return got
+        if hop == MAX_REDIRECTS:
+            break
+        url = nxt
+    raise Refused(f"It redirected more than {MAX_REDIRECTS} times.")
+
+
+CHALLENGE = (b"challenge-platform", b"just a moment...", b"attention required!",
+             b"cf-browser-verification", b"captcha", b"checking your browser")
+
+
+def challenged(got) -> bool:
+    """A bot challenge (Cloudflare's and the like) answered instead of the page."""
+    if (got.headers.get("cf-mitigated") or [""])[0].strip().lower() == "challenge":
+        return True
+    return got.status in (403, 429, 503) and any(m in got.body[:30000].lower() for m in CHALLENGE)
+
+
 # ------------------------------------------------------------------ the check's requests
 
 LOGIN_FORM = re.compile(r"id\s*=\s*[\"']loginform[\"']", re.I)
@@ -960,7 +925,49 @@ def read(scheme: str, host: str, budget: Budget) -> dict:
             "moved": home.url if home.url.rstrip("/") != f"{scheme}://{host}" else None}
 
 
-# ------------------------------------------------------------------ advisories
+# ------------------------------------------------------------------ advisories.py
+
+ADVISORIES = {
+    "schema": 1,
+    "updated": "2026-10-21",
+    "about": "Advisories php2shell-check matches against what a site shows. Facts only from the vendor's own advisory. Newer lists: https://github.com/spcaeo/php2shell-check/blob/main/advisories.json",
+    "advisories": [
+        {"id": "php-2026-10-21", "product": "php", "cves": ["CVE-2026-109618", "CVE-2026-109619"],
+         "title": "PHP: unauthenticated remote code execution", "severity": "critical",
+         "score": "CVSS v4 9.2", "published": "2026-10-21", "branch": "minor",
+         "fixed": {"8.5": "8.5.12", "8.4": "8.4.27", "8.3": "8.3.36", "8.2": "8.2.35"},
+         "no_fix_below": "8.2",
+         "no_fix_words": "PHP 8.1 and older have no official release with the fix; only source backports exist for 7.4, 8.0 and 8.1.",
+         "affected": "Sites run by PHP-FPM, mod_php (the highest risk), php-cgi, FrankenPHP or LiteSpeed.",
+         "summary": "A flaw in PHP lets anyone on the internet run code on the server, without signing in.",
+         "action": "Update PHP to the fixed release of its branch, then restart PHP (the FPM pool or the web server).",
+         "mitigations": [
+             "Set memory_limit=-1 through php_admin_value in the pool or virtual host.",
+             "Set post_max_size to 8M (32M on a site that takes uploads).",
+             "Set session.upload_progress.enabled=0, then restart the PHP workers.",
+             "On PHP 8.5, set fatal_error_backtraces=0.",
+             "At the proxy, limit the request size, the number of form fields and the number of multipart parts."],
+         "mitigations_note": "These reduce the exposure; they do not make a site safe. Update.",
+         "also_known_as": "php2shell",
+         "firewall_notes": [
+             {"product": "cloudflare",
+              "words": "Cloudflare says it deployed firewall (WAF) rules against php2shell on 21 October 2026 at 03:02 UTC, on every plan with its WAF, the Free plan included, and that customers should patch even with these protections.",
+              "source": "https://blog.cloudflare.com/php-vulnerabilities-waf-protection/"}],
+         "sources": ["https://www.php.net/archive/2026.php#2026-10-21-5",
+                     "https://www.php.net/archive/2026.php#2026-10-20-1"]},
+        {"id": "nodejs-2026-10", "product": "nodejs", "cves": ["CVE-2026-111497"],
+         "title": "Node.js October 2026 security releases", "severity": "high",
+         "score": "highest of ten fixes", "published": "2026-10-21", "branch": "major",
+         "fixed": {"22": "22.23.4", "24": "24.22.1", "26": "26.12.1"}, "no_fix_below": "22",
+         "no_fix_words": "Node.js branches that have reached end of life get no fix: move to a supported branch (22, 24 or 26).",
+         "affected": "Every Node.js server on a branch below the fixed release, a Next.js site's included.",
+         "summary": "The most serious flaw, a Brotli decoder out-of-bounds write (CVE-2026-111497), can let a crafted request run code on the server; others are DNS NUL truncation, TLS hostname verification and keep-alive issues.",
+         "action": "Update Node.js to the fixed release of its branch, rebuild the app's image if it runs in a container, and restart it.",
+         "mitigations": [], "mitigations_note": "",
+         "sources": ["https://nodejs.org/en/blog/vulnerability/october-2026-security-releases"]},
+    ],
+}
+
 
 STATES = ("update_needed", "no_fix", "check_version", "fixed", "not_listed")
 FIELDS = ("id", "product", "title", "severity", "published", "branch", "fixed", "sources")
@@ -1032,7 +1039,7 @@ def load_advisories(url=None, allow_private=False) -> tuple:
     return doc, url, None
 
 
-# ------------------------------------------------------------------ cards
+# ------------------------------------------------------------------ cards.py
 
 GROUPS = {"update": "act", "login": "act", "hidden": "check", "unknown": "check", "tip": "tips",
           "info": "tips", "hosted": "good", "good": "good", "fixed": "good", "nothing": "good"}
@@ -1364,6 +1371,8 @@ def answer(host: str, blob: dict, doc: dict, now: datetime, ua: str) -> dict:
             "fetches": blob.get("fetches", 0)}
 
 
+# ------------------------------------------------------------------ cli.py
+
 def check(raw, doc=None, now=None, *, ua=USER_AGENT, max_requests=MAX_FETCHES, timeout=TIMEOUT,
           allow_private=False, budget=None) -> dict:
     """The whole check for what someone typed. Refused (in plain words) when the address is
@@ -1372,8 +1381,6 @@ def check(raw, doc=None, now=None, *, ua=USER_AGENT, max_requests=MAX_FETCHES, t
     budget = budget or Budget(max_requests, timeout, ua=ua, allow_private=allow_private)
     return answer(host, read(scheme, host, budget), doc or ADVISORIES, now or datetime.now(timezone.utc), budget.ua)
 
-
-# ------------------------------------------------------------------ output
 
 LABELS = {"update": "UPDATE NEEDED", "login": "LOGIN OPEN", "hidden": "CHECK", "unknown": "COULD NOT CHECK",
           "tip": "TIP", "info": "INFO", "hosted": "GOOD", "good": "GOOD", "fixed": "FIXED",

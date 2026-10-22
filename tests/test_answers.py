@@ -7,10 +7,9 @@ import shlex
 import threading
 import time
 import unittest
-from unittest import mock
 
 import php2shell_check as p2s
-from tests.helpers import NOW, PUBLIC, PUBLIC2, TESTNET, Net, doc_refused, evidenced, run
+from tests.helpers import NOW, PUBLIC, PUBLIC2, TESTNET, Net, doc_refused, evidenced, patches, run
 
 LOGIN_FORM = (b'<form name="loginform" id="loginform" action="/wp-login.php" method="post">'
               b'<input name="log"><input name="pwd" type="password"></form>')
@@ -173,9 +172,8 @@ class FakeSite:
         return self.real("http", host, "127.0.0.1", self.port, method, target, timeout, max_bytes, agent=agent)
 
     def __enter__(self):
-        self._p = [mock.patch.object(p2s, "lookup", lambda h, p: [PUBLIC]),
-                   mock.patch.object(p2s, "open_pinned", self.open),
-                   mock.patch.object(p2s, "address_refused", doc_refused)]
+        self._p = patches(p2s, lookup=lambda h, p: [PUBLIC], open_pinned=self.open,
+                          address_refused=doc_refused)
         for p in self._p:
             p.start()
         return self

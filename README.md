@@ -11,7 +11,8 @@ October 2026 security releases**. It reads what your site shows anyone from outs
 tells you what it found. Every finding comes with the evidence, the URL it came from, and a
 `curl` command so you can check it yourself.
 
-One Python file, standard library only, Python 3.9 or newer. MIT licence.
+One Python file, standard library only, Python 3.9 or newer. MIT licence. (The source is
+the package [`php2shell_check/`](php2shell_check/); the single file is built from it.)
 
 ## Quick start
 
@@ -20,7 +21,8 @@ curl -sSL https://raw.githubusercontent.com/spcaeo/php2shell-check/main/php2shel
 ```
 
 Or download it once and run it: `python3 php2shell_check.py example.com`. With pipx:
-`pipx run --spec git+https://github.com/spcaeo/php2shell-check php2shell-check example.com`.
+`pipx run --spec git+https://github.com/spcaeo/php2shell-check php2shell-check example.com`,
+or from a clone: `python3 -m php2shell_check example.com`.
 
 ![php2shell-check's terminal output: an "Update needed" finding for PHP 8.3.10 with the header it was read from, two tips, a hidden login page, the list of requests made and the honesty note](docs/screenshot.svg)
 

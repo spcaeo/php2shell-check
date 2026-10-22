@@ -31,7 +31,7 @@ Issues = "https://github.com/spcaeo/php2shell-check/issues"
 "Web check" = "https://skaldanalytics.com/check/"
 
 [project.scripts]
-php2shell-check = "php2shell_check:main"
+php2shell-check = "php2shell_check.cli:main"
 
 [tool.setuptools]
-py-modules = ["php2shell_check"]
+packages = ["php2shell_check"]

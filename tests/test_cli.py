@@ -209,7 +209,7 @@ class AsAFile(unittest.TestCase):
 
     def test_the_console_script_and_the_version_agree(self):
         text = (ROOT / "pyproject.toml").read_text()
-        self.assertIn('php2shell-check = "php2shell_check:main"', text)
+        self.assertIn('php2shell-check = "php2shell_check.cli:main"', text)
         self.assertIn(f'version = "{p2s.__version__}"', text)
         self.assertIn(f"## {p2s.__version__}", (ROOT / "CHANGELOG.md").read_text())
 

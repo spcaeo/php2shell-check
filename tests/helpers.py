@@ -2,11 +2,15 @@
 
 RFC 5737 / RFC 3849 documentation addresses stand for public ones here: `doc_refused` lets
 them through, and every other address meets the real rule.
+
+The stand-ins work on the package (each function patched in the module that owns it) and on
+the generated single file (one module), so both can be run on the same fixtures.
 """
 from __future__ import annotations
 
 import json
 import socket
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest import mock
@@ -17,20 +21,36 @@ NOW = datetime(2026, 10, 21, 18, tzinfo=timezone.utc)
 PUBLIC, PUBLIC2, PUBLIC6 = "192.0.2.10", "198.51.100.20", "2001:db8::10"
 TESTNET = {PUBLIC, PUBLIC2, PUBLIC6}
 CASES = Path(__file__).resolve().parent / "fixtures" / "sites"
-real_refused = p2s.address_refused
 
 
-def doc_refused(text, allow_private=False):
-    """Documentation addresses stand for public ones; every other address, the real rule."""
-    return None if str(text) in TESTNET else real_refused(text, allow_private)
+def owner(mod, name: str):
+    """The module where `name` lives (a package submodule, or the single file itself)."""
+    return sys.modules[getattr(mod, name).__module__]
+
+
+def patches(mod, **values) -> list:
+    """mock patches of each name in the module that owns it."""
+    return [mock.patch.object(owner(mod, name), name, value) for name, value in values.items()]
+
+
+def refuser(mod):
+    """The address rule of `mod`, with documentation addresses standing for public ones."""
+    real = mod.address_refused
+
+    def doc_refused(text, allow_private=False):
+        return None if str(text) in TESTNET else real(text, allow_private)
+    return doc_refused
+
+
+doc_refused = refuser(p2s)
 
 
 class Net:
     """lookup and open_pinned stand-ins. names: host -> [addresses] (or a list of such lists,
     one per lookup); pages: (method, url) or url -> (status, headers, body)."""
 
-    def __init__(self, names=None, pages=None):
-        self.names, self.pages = names or {}, pages or {}
+    def __init__(self, names=None, pages=None, module=p2s):
+        self.names, self.pages, self.module = names or {}, pages or {}, module
         self.looked: list = []
         self.opened: list = []
 
@@ -49,12 +69,11 @@ class Net:
                             "timeout": timeout, "max_bytes": max_bytes})
         status, headers, body = self.pages.get((method, url)) or self.pages.get(url) or (404, {}, b"")
         headers = {k.lower(): (v if isinstance(v, list) else [v]) for k, v in headers.items()}
-        return p2s.Answer(status, headers, body if method == "GET" else b"", url, address)
+        return self.module.Answer(status, headers, body if method == "GET" else b"", url, address)
 
     def __enter__(self):
-        self._p = [mock.patch.object(p2s, "lookup", self.lookup),
-                   mock.patch.object(p2s, "open_pinned", self.open),
-                   mock.patch.object(p2s, "address_refused", doc_refused)]
+        self._p = patches(self.module, lookup=self.lookup, open_pinned=self.open,
+                          address_refused=refuser(self.module))
         for p in self._p:
             p.start()
         return self
@@ -69,7 +88,7 @@ def run(raw, net, **kw):
         return p2s.check(raw, p2s.ADVISORIES, NOW, **kw)
 
 
-def case_net(name: str) -> tuple:
+def case_net(name: str, module=p2s) -> tuple:
     """(the case, a Net that answers its pages): every host it names resolves to PUBLIC."""
     folder = CASES / name
     case = json.loads((folder / "case.json").read_text())
@@ -82,7 +101,7 @@ def case_net(name: str) -> tuple:
     if names is None:
         names = {p2s.host_of(url): [PUBLIC] for _m, url in pages}
         names[p2s.target(case["typed"])[1]] = [PUBLIC]
-    return case, Net(names=names, pages=pages)
+    return case, Net(names=names, pages=pages, module=module)
 
 
 def case_names() -> list:

@@ -23,10 +23,12 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python }}
+      - name: The single file is the build of the package
+        run: python tools/build-single-file.py --check
       - name: Unit tests (no network)
         run: python -m unittest -v
       - name: The file runs on its own
-        run: python -I php2shell_check.py --version && python -I - --version < php2shell_check.py
+        run: python -I php2shell_check.py --version && python -I - --version < php2shell_check.py && python -m php2shell_check --version
 
   action:
     name: The GitHub Action on our own site

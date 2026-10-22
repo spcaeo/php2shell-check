@@ -38,7 +38,11 @@ First release.
   inside IPv6 too), and the connection goes to the address checked; every redirect checked
   again. `--allow-private` for a site of your own network.
 - **Advisories** built into the file; `--advisories-url` loads a newer list.
-- **Checked by:** 38 unit tests with their sub-cases (a corpus of 22 kinds of site, every
+- **Source and single file:** the source is the package `php2shell_check/` (one module
+  per concern, each under 1,000 lines); `php2shell_check.py` is generated from it by
+  `tools/build-single-file.py` and committed. A test and the CI fail when it is out of date,
+  and a test runs it on every fixture and checks it answers exactly as the package does.
+- **Checked by:** 43 unit tests with their sub-cases (a corpus of 22 kinds of site, every
   refused address form, the limits, the CLI, `--json` and the exit codes, a local HTTP
   server), on Python 3.9 to 3.13 with no network; live runs on wordpress.org, drupal.org
   and skaldanalytics.com; the Action's shell step run locally.
