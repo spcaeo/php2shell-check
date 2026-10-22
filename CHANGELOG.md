@@ -7,6 +7,43 @@ a major. A new advisory list alone is not a release: it goes in `advisories.json
 
 ## Unreleased
 
+## 1.0.1 (2026-10-22)
+
+From Skald's public check (2.22.1 and the fixes after it), ported with tests.
+
+- **A firewall that stops the check now says so, with what to run instead.** Before, a
+  Cloudflare-style challenge or a 403 read "Could not check <host>: a bot challenge ..." and a
+  card titled "firewall blocked our check". Since this tool runs from your own machine, a block
+  means the firewall stops this machine too (firewalls often let a browser through and stop
+  scripts). Now: "Your site's firewall stopped this check from this machine, so we can't see
+  what it shows. That's often good news: it blocks automated scanners too.", then how to see
+  the details (run it from a machine the firewall lets through, or `curl -sI https://<host>/ |
+  grep -iE "server|x-powered-by"` and `php -v` on the server), and a card with the proof: the
+  status, the challenge's header (`cf-mitigated: challenge`, AWS WAF's `x-amzn-waf-action`) or
+  page title, and the firewall its own headers or page name (Cloudflare, Sucuri, Akamai, AWS
+  WAF, CloudFront, Imperva, Fastly, Wordfence). 401 says it asks for a password. A 503 counts
+  only with a firewall's own denial page (a 503 alone is a site that is down). The tool never
+  changes its User-Agent to get past one. JSON: a new `block` field (`kind`, `status`, `url`,
+  `firewalls`, `saw`, `commands`, `summary`, `next`), `summary` set for a blocked site, and
+  `counts` all 0 for any site that could not be read (could not check is not a problem found).
+  The exit code is still 2. Markdown and the terminal show the commands.
+- **The summary reads in the order people say it.** "Your site is served by nginx on PHP
+  (version hidden) behind CloudFront" is now "Your site runs PHP (version hidden) on nginx,
+  behind CloudFront.": the platform or the language first, then the web server, the host and
+  the CDN. The web server is named after a platform too ("Your site runs Drupal 10 on PHP
+  (version hidden), served by Apache."), and a language not under the platform is no longer
+  put under it.
+- **The same finding on two hosts is one card.** A headless WordPress whose front (www.) and
+  content host (wp.) both send `Server: nginx/1.24.0` gave "Your server shows its exact version:
+  nginx 1.24.0" twice; now one card lists both hosts, keeps each host's evidence, ends "Seen on 2
+  hosts: ..." and is counted once.
+- **Checked:** `tests/test_blocked.py` (a Cloudflare challenge, a plain 403 and Sucuri's 503 from
+  the corpus; AWS WAF, Akamai, Wordfence, Imperva; a password; two 503s that are not blocks;
+  one request, the tool's own User-Agent; the terminal and Markdown), every summary of the
+  26-case corpus in a table with checks on the order of its parts, 15 combinations, and the
+  merge (a new corpus case and a unit test). The single file answers as the package on every
+  case.
+
 ## 1.0.0 (2026-10-21)
 
 First release.

@@ -67,6 +67,10 @@ def render(ans: dict, color: bool = False, width: int = 100, source: str = "buil
     out.append("")
     if ans["reached"]:
         out.append(p("1", wrap(ans["summary"], "")))
+    elif ans.get("block"):
+        b = ans["block"]
+        out.append(p("1;33", wrap(b["summary"], "")))
+        out += ["", wrap(b["next"], "")] + [p("2", "  $ ") + cmd for cmd in b["commands"]]
     else:
         out.append(p("1;33", wrap(f"Could not check {ans['host']}: {ans.get('error') or 'no answer'}.", "")))
     if ans.get("facts"):
@@ -80,7 +84,7 @@ def render(ans: dict, color: bool = False, width: int = 100, source: str = "buil
         out.append(wrap("What to do: " + c["advice"], "  ", "    "))
         for src in c.get("sources") or []:
             out.append(p("2", f"  Source: {src}"))
-        cmds = list(dict.fromkeys(s["command"] for s in c["saw"]))
+        cmds = list(dict.fromkeys([s["command"] for s in c["saw"]] + list(c.get("commands") or [])))
         if cmds:
             out.append("  Check it yourself:")
             out += [p("2", "    $ ") + cmd for cmd in cmds]
@@ -106,8 +110,11 @@ def _md(text) -> str:
 
 def markdown(ans: dict) -> str:
     """The answer as Markdown, for a GitHub job summary."""
-    head = ans["summary"] if ans["reached"] else f"Could not check {ans['host']}: {ans.get('error')}."
+    head = ans["summary"] if ans["reached"] or ans.get("block") else \
+        f"Could not check {ans['host']}: {ans.get('error')}."
     out = [f"## php2shell-check: {_md(ans['host'])}", "", f"**{_md(head)}**", ""]
+    if ans.get("block"):
+        out += [_md(ans["block"]["next"]), "", "```sh", *ans["block"]["commands"], "```", ""]
     if ans["cards"]:
         out += ["| Status | Finding | We saw |", "| --- | --- | --- |"]
         out += [f"| {LABELS[c['kind']]} | {_md(c['title'])} | {_md(c['saw'][0]['text'][:160]) if c['saw'] else ''} |"
@@ -117,7 +124,8 @@ def markdown(ans: dict) -> str:
         out += [f"- {_md(s['text'])} ({_md(s['url'])})" for s in c["saw"]]
         out += ["", _md(c["means"]), "", f"What to do: {_md(c['advice'])}", ""]
         out += [f"Source: {s}" for s in c.get("sources") or []]
-        out += ["", "```sh"] + list(dict.fromkeys(s["command"] for s in c["saw"])) + ["```", "", "</details>"]
+        out += ["", "```sh"] + list(dict.fromkeys([s["command"] for s in c["saw"]] + list(c.get("commands") or []))) \
+            + ["```", "", "</details>"]
     out += ["", "<details><summary>What we fetched</summary>", "", "| Method | Status | Bytes | URL |",
             "| --- | --- | --- | --- |"]
     out += [f"| {f['method']} | {f['status'] or '-'} | {f['bytes'] if f.get('bytes') is not None else '-'} | "

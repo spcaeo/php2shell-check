@@ -104,7 +104,10 @@ doesn't test for the flaw: it never sends an attack, a form or a password.
 - **Only what the home page shows.** A PHP app on another path or host that the home page
   doesn't link to is not seen.
 - **A firewall or bot challenge** in front may answer instead of your site: then it says
-  "could not check".
+  "could not check", shows what it saw (the status, the challenge's mark, the firewall its own
+  headers name: Cloudflare, Sucuri, Akamai, AWS WAF ...) and how to see the details: run it from
+  a machine the firewall lets through, or by hand (`curl -sI https://<host>/ | grep -iE
+  "server|x-powered-by"`, and `php -v` on the server). It never disguises itself to get past one.
 - **A CDN can hide your server's own headers.**
 - **The mitigations** (php.ini settings, request limits at the proxy) are not visible from
   outside.
@@ -124,7 +127,7 @@ php2shell-check URL [--json] [--fail-on update_needed|check|any] [--timeout 10]
 | `--fail-on LEVEL` | For CI: exit 1 when a finding is at or above the level. `update_needed`: a version read that needs the fix. `check`: also a hidden version, an open login page, or something that could not be checked. `any`: also tips. |
 | `--timeout SECONDS` | Per request (default 10). |
 | `--max-requests N` | Requests in all, redirects included (default 8). |
-| `--user-agent UA` | The User-Agent sent (default `php2shell-check/1.0.0 (+https://github.com/spcaeo/php2shell-check)`). |
+| `--user-agent UA` | The User-Agent sent (default `php2shell-check/1.0.1 (+https://github.com/spcaeo/php2shell-check)`). |
 | `--advisories-url URL` | Load a newer advisory list (https JSON). Off by default. |
 | `--allow-private` | Check a site of your own network (see Safety). |
 | `--write-json`, `--write-markdown` | Also write the JSON answer, or a Markdown report, to a file. |

@@ -50,7 +50,7 @@ class Terminal(unittest.TestCase):
         code, out, _ = fixture("wordpress-woocommerce-litespeed")
         self.assertEqual(code, 0)
         self.assertIsNone(ANSI.search(out), "no colour when not a terminal")
-        self.assertIn("Your site runs WordPress 6.8.1 on PHP 8.3.10. 1 thing to do now, 2 tips.", out)
+        self.assertIn("Your site runs WordPress 6.8.1 on PHP 8.3.10, served by LiteSpeed. 1 thing to do now, 2 tips.", out)
         self.assertIn("UPDATE NEEDED  Update needed: PHP 8.3.10 on shop.example.com", out)
         self.assertIn("We saw the header X-Powered-By: PHP/8.3.10", out)
         self.assertIn("    https://shop.example.com/", out)
@@ -93,8 +93,8 @@ class Terminal(unittest.TestCase):
     def test_could_not_check_says_so(self):
         code, out, _ = fixture("cloudflare-challenge")
         self.assertEqual(code, 2)
-        self.assertIn("Could not check www.example.com: a bot challenge", out)
-        self.assertIn("COULD NOT CHECK  www.example.com's firewall blocked our check", out)
+        self.assertIn("Your site's firewall stopped this check from this machine", out)
+        self.assertIn("COULD NOT CHECK  www.example.com's firewall stopped this check", out)
 
 
 class Json(unittest.TestCase):

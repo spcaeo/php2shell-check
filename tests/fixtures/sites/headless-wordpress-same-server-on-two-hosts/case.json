@@ -1,0 +1,79 @@
+{
+ "about": "A live shape (Skald 2.22.1): a Next.js front at www and a headless WordPress at wp, both sending Server: nginx/1.24.0. The tip 'shows its exact version' is one card listing both hosts, each with its evidence",
+ "typed": "www.example.com",
+ "pages": {
+  "GET https://www.example.com/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx/1.24.0 (Ubuntu)",
+    "X-Powered-By": "Next.js"
+   },
+   "body": "<html><head><script src=\"/_next/static/chunks/main.js\"></script></head><body><img src=\"https://wp.example.com/wp-content/uploads/2026/10/a.webp\"><img src=\"https://wp.example.com/wp-content/uploads/2026/10/b.webp\"><script id=\"__NEXT_DATA__\" type=\"application/json\">{}</script></body></html>"
+  },
+  "GET https://wp.example.com/wp-login.php": {
+   "status": 302,
+   "headers": {
+    "Server": "nginx/1.24.0 (Ubuntu)",
+    "Location": "https://wp.example.com/not_found"
+   },
+   "body": ""
+  },
+  "GET https://wp.example.com/not_found": {
+   "status": 404,
+   "headers": {
+    "Server": "nginx/1.24.0 (Ubuntu)"
+   },
+   "body": "Not found"
+  },
+  "HEAD https://wp.example.com/wp-json/": {
+   "status": 200,
+   "headers": {
+    "Server": "nginx/1.24.0 (Ubuntu)",
+    "Link": "<https://wp.example.com/wp-json/>; rel=\"https://api.w.org/\""
+   }
+  },
+  "HEAD https://wp.example.com/": {
+   "status": 404,
+   "headers": {
+    "Server": "nginx/1.24.0 (Ubuntu)"
+   }
+  }
+ },
+ "expect": {
+  "summary": "Your site runs Next.js on Node.js (version hidden), served by nginx. Nothing to do now, 2 to check, 3 tips.",
+  "cards": [
+   [
+    "hidden",
+    "Node.js on www.example.com: version not shown by the server"
+   ],
+   [
+    "hidden",
+    "PHP on wp.example.com: version not shown by the server"
+   ],
+   [
+    "tip",
+    "Your server shows its exact version: nginx 1.24.0"
+   ],
+   [
+    "tip",
+    "Security headers: 0 of 5"
+   ],
+   [
+    "info",
+    "Headless WordPress at wp.example.com"
+   ],
+   [
+    "good",
+    "Login page on wp.example.com hidden or blocked (good)"
+   ]
+  ],
+  "products": [
+   "Next.js @www.example.com",
+   "Node.js version not shown @www.example.com",
+   "PHP version not shown @wp.example.com",
+   "WordPress version not shown @wp.example.com",
+   "nginx 1.24.0 @wp.example.com",
+   "nginx 1.24.0 @www.example.com"
+  ]
+ }
+}

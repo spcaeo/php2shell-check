@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PACKAGE = ROOT / "php2shell_check"
 OUT = ROOT / "php2shell_check.py"
-MODULES = ("safety", "detect", "fetch", "advisories", "cards", "cli")   # each after what it uses
+MODULES = ("safety", "detect", "blocked", "fetch", "advisories", "cards", "cli")   # each after what it uses
 MARK = "# GENERATED from php2shell_check/ by tools/build-single-file.py — do not edit"
 
 

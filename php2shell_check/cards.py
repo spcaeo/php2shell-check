@@ -6,6 +6,7 @@ import ssl
 from datetime import datetime, timezone
 
 from .advisories import branch_of, match, version
+from .blocked import BLOCKED_NEXT, BLOCKED_SUMMARY, blocked_card, blocked_words
 from .detect import FIREWALLS, NAMES, _q, runtimes
 
 GROUPS = {"update": "act", "login": "act", "hidden": "check", "unknown": "check", "tip": "tips",
@@ -214,30 +215,82 @@ def headless_card(origin_row: dict, site_found: list, site_host: str) -> dict:
                  [oh, site_host])
 
 
-def summary(site: dict, found: list, rts: list, cards: list) -> str:
-    here = [f for f in found if f["host"] == site["host"]]
+def _runtime(rt: dict) -> str:
+    return rt["name"] + (f" {rt['version']}" if rt.get("version") else
+                         f" (run by {rt['patched']})" if rt.get("patched") else " (version hidden)")
+
+
+def stack_words(here: list, rts: list) -> str:
+    """What runs the site, in the order people say it: the platform or the language first,
+    then the web server, then where it is hosted, then the CDN or firewall in front:
+    "Your site runs PHP (version hidden) on nginx, behind CloudFront"."""
     app = next((f for fam in ("hosted", "cms", "js", "framework") for f in here if f["family"] == fam), None)
     server = next((f for f in here if f["family"] == "server"), None)
-    host = next((f for f in here if f["family"] == "hosting"), None)
-    words = "Your site"
+    hosting = next((f for f in here if f["family"] == "hosting"), None)
+    # The language under the platform (WordPress on PHP); with no platform, the first one seen.
+    rt = next((r for r in rts if app and any(u.startswith(app["name"]) for u in r.get("under") or [])),
+              None if app else (rts[0] if rts else None))
+    hosted = bool(app and app["family"] == "hosted")
     if app:
-        words += f" runs {app['name']}" + (f" {app['version']}" if app.get("version") else "")
+        words = f"Your site runs {app['name']}" + (f" {app['version']}" if app.get("version") else "")
+        if rt and not hosted:
+            words += f" on {_runtime(rt)}"
+        if server and not hosted:
+            words += f", served by {server['name']}"
+    elif rt:
+        words = f"Your site runs {_runtime(rt)}" + (f" on {server['name']}" if server else "")
     elif server:
-        words += f" is served by {server['name']}"
+        words = f"Your site is served by {server['name']}"
+    elif hosting:
+        words, hosting = f"Your site is hosted on {hosting['name']}", None
     else:
-        words += f" is hosted on {host['name']}" if host else " names no platform we know"
-        host = None
-    mine = [r for r in rts if r["host"] == site["host"]]
-    rt = next((r for r in mine if app and any(u.startswith(app["name"]) for u in r.get("under") or [])),
-              mine[0] if mine else None)
-    if rt and not (app and app["family"] == "hosted"):
-        words += f" on {rt['name']}" + (f" {rt['version']}" if rt.get("version") else
-                                        f" (run by {rt['patched']})" if rt.get("patched") else " (version hidden)")
-    elif host:
-        words += f", hosted on {host['name']}"
-    cdn = next((f for f in here if f["product"] in FIREWALLS), None)
-    if cdn:
-        words += f" behind {cdn['name']}"
+        words = "We can't see what runs your site"
+    if hosting and not hosted and not (rt and rt.get("patched") == hosting.get("patched")):
+        words += f", hosted on {hosting['name']}"
+    cdns = list(dict.fromkeys(f["name"] for f in here if f["product"] in FIREWALLS))
+    if cdns:
+        words += ("; it sits behind " if words.startswith("We can't") else ", behind ") + _and(cdns)
+    return words
+
+
+def merge(cards: list) -> list:
+    """Cards of the same kind and title (the same finding, seen on several hosts) as one card:
+    its hosts in order, every host's evidence ("saw") kept, and the hosts named in "means".
+    The order of first appearance is kept, so the counts and the summary count each once."""
+    out, seen = [], {}
+    for c in cards:
+        key = (c["kind"], c["title"])
+        first = seen.get(key)
+        if first is None:
+            seen[key] = c
+            out.append(c)
+            continue
+        if first is c:
+            continue
+        if not first.get("merged"):
+            first.update(saw=list(first.get("saw") or []), hosts=list(first.get("hosts") or []),
+                         merged=True, means_one=first.get("means", ""))
+        for s in c.get("saw") or []:
+            if not any(s.get("text") == x.get("text") and s.get("url") == x.get("url") for x in first["saw"]):
+                first["saw"].append(s)
+        for h in c.get("hosts") or []:
+            if h not in first["hosts"]:
+                first["hosts"].append(h)
+        for f in c.get("facts") or []:
+            first.setdefault("facts", [])
+            if f not in first["facts"]:
+                first["facts"].append(f)
+    for c in out:
+        if c.pop("merged", False):
+            one = c.pop("means_one")
+            if len(c["hosts"]) > 1:
+                c["means"] = f"{one} Seen on {len(c['hosts'])} hosts: {_and(c['hosts'])}.".strip()
+    return out
+
+
+def summary(site: dict, found: list, rts: list, cards: list) -> str:
+    here = [f for f in found if f["host"] == site["host"]]
+    words = stack_words(here, [r for r in rts if r["host"] == site["host"]])
     n = {g: sum(1 for c in cards if c["group"] == g) for g in ORDER}
     todo = f"{n['act']} thing{'s' if n['act'] != 1 else ''} to do now" if n["act"] else "Nothing to do now"
     rest = [f"{n['check']} to check" if n["check"] else "",
@@ -298,12 +351,11 @@ def answer(host: str, blob: dict, doc: dict, now: datetime, ua: str) -> dict:
         f = (blob.get("fetched") or [{}])[-1]
         url = f.get("url") or f"https://{host}/"
         saw = [_see(f"We could not read {url}: {site.get('error') or 'no answer'}", url, f"curl -sIL {_q(url)}")]
-        if blob.get("reason") == "blocked":
-            cards.append(_card("unknown", f"{host}'s firewall blocked our check", saw,
-                               "This means we can't see what it shows, so we say nothing about it. "
-                               "That's often good news: strangers see little too.",
-                               "Check the versions on your server instead: php -v, node -v, nginx -v "
-                               "(or apachectl -v).", [host], commands=["php -v", "node -v", "nginx -v", "apachectl -v"]))
+        block = blob.get("block") if blob.get("reason") == "blocked" else None
+        if block:
+            cards.append(blocked_card(host, block))
+            facts += [f"Answered {block['status']}"] + (
+                [f"Firewall: {_and(block['firewalls'])}"] if block["firewalls"] else [])
         else:
             cards.append(_card("unknown", f"Could not check {host}", saw,
                                "This means we say nothing about this site: we could not read it.",
@@ -320,19 +372,24 @@ def answer(host: str, blob: dict, doc: dict, now: datetime, ua: str) -> dict:
                            f"names what your site shows.", "This is only what anyone can see from outside: "
                            "keep the server and everything on it updated anyway.", [site["host"]]))
     cards.sort(key=lambda c: (ORDER.index(c["group"]), KINDS.index(c["kind"])))
+    cards = merge(cards)
     products = [{"product": f["product"], "name": f["name"], "version": f.get("version"),
                  "shown": f.get("version") or (f"run by {f['patched']}" if f["family"] == "runtime"
                                                and f.get("patched") else "version not shown"
                                                if f["family"] in ("runtime", "cms", "server") else ""),
                  "family": f["family"], "host": f["host"], "patched": f.get("patched")}
                 for f in [*[x for x in found if x["product"] not in ("php", "nodejs")], *rts]]
+    block = None if reached else blob.get("block")
+    if block:
+        block = {**block, "summary": BLOCKED_SUMMARY[blocked_words(block)], "next": BLOCKED_NEXT[blocked_words(block)]}
     return {"host": host, "reached": reached, "error": None if reached else site.get("error"),
             "reason": None if reached else blob.get("reason") or "unreachable",
-            "summary": summary(site, found, rts, cards) if reached else None,
-            "counts": {g: sum(1 for c in cards if c["group"] == g) for g in ORDER},
+            "summary": summary(site, found, rts, cards) if reached else block["summary"] if block else None,
+            # a site we could not read counts nothing: "could not check" is not a problem found
+            "counts": {g: sum(1 for c in cards if c["group"] == g) if reached else 0 for g in ORDER},
             "checked_at": now.astimezone(timezone.utc).isoformat(timespec="seconds"),
             "agent": ua, "fetched": blob.get("fetched") or [], "facts": facts,
             "hosts": [{"host": r["host"], "role": r["role"], "reached": bool(r.get("read") or r.get("found")),
                        "error": r.get("error")} for r in rows],
             "products": products, "cards": cards, "advisories_updated": doc.get("updated"),
-            "fetches": blob.get("fetches", 0)}
+            "fetches": blob.get("fetches", 0), "block": block}

@@ -10,6 +10,7 @@ import time
 from collections import Counter
 from urllib.parse import urljoin, urlsplit
 
+from .blocked import blocker, challenged
 from .detect import WP_ANY, Page, detect, files
 from .safety import (MAX_ADDRESSES, MAX_BYTES, MAX_FETCHES, MAX_REDIRECTS, LOGIN_HOPS, PORTS,
                      REDIRECTS, TIMEOUT, USER_AGENT, Answer, Refused, Spent, Unreachable,
@@ -170,23 +171,11 @@ def follow(url: str, budget: Budget) -> Answer:
     raise Refused(f"It redirected more than {MAX_REDIRECTS} times.")
 
 
-CHALLENGE = (b"challenge-platform", b"just a moment...", b"attention required!",
-             b"cf-browser-verification", b"captcha", b"checking your browser")
-
-
-def challenged(got) -> bool:
-    """A bot challenge (Cloudflare's and the like) answered instead of the page."""
-    if (got.headers.get("cf-mitigated") or [""])[0].strip().lower() == "challenge":
-        return True
-    return got.status in (403, 429, 503) and any(m in got.body[:30000].lower() for m in CHALLENGE)
-
-
 # ------------------------------------------------------------------ the check's requests
 
 LOGIN_FORM = re.compile(r"id\s*=\s*[\"']loginform[\"']", re.I)
 LOG, PWD = (re.compile(rf"name\s*=\s*[\"']{n}[\"']", re.I) for n in ("log", "pwd"))
 HIDDEN = (401, 403, 404, 410)
-BLOCKED = (401, 403, 429)
 SECURITY_HEADERS = ("strict-transport-security", "content-security-policy", "x-frame-options",
                     "x-content-type-options", "referrer-policy")
 
@@ -319,11 +308,13 @@ def read(scheme: str, host: str, budget: Budget) -> dict:
         return unread(plain(str(why), budget.timeout), "unreachable")
     except Spent:
         return unread("it redirected too often", "error")
-    if challenged(home):
-        return unread("a bot challenge (for example Cloudflare's \"Just a moment\") answered "
-                      "instead of the page", "blocked")
-    if home.status in BLOCKED:
-        return unread(f"the home page answered {home.status}", "blocked")
+    block = blocker(home, host_of(home.url) or host)
+    if block:
+        out = unread({"challenge": "a bot challenge answered instead of the page",
+                      "password": f"the home page answered {home.status} (it asks for a password)",
+                      "denied": f"the home page answered {home.status}"}[block["kind"]], "blocked")
+        out["block"] = block
+        return out
     if not 200 <= home.status < 300:
         return unread(f"the home page answered {home.status}", "error")
     pg = page_of(home)

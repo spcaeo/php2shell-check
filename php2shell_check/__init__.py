@@ -33,11 +33,12 @@ from __future__ import annotations
 
 from .advisories import (ADVISORIES, branch_of, judge, load_advisories, match, valid,  # noqa: F401
                          version)
-from .cards import answer, summary  # noqa: F401
+from .blocked import blocked_card, blocker, challenged  # noqa: F401
+from .cards import answer, merge, stack_words, summary  # noqa: F401
 from .cli import (LABELS, LEVELS, check, exit_code, main, markdown, render,  # noqa: F401
                   use_color)
 from .detect import NAMES, Page, detect, runtimes  # noqa: F401
-from .fetch import Budget, challenged, follow, get, open_pinned, plain, read  # noqa: F401
+from .fetch import Budget, follow, get, open_pinned, plain, read  # noqa: F401
 from .safety import (ADVISORIES_URL, HOME, MAX_BYTES, MAX_FETCHES, MAX_REDIRECTS,  # noqa: F401
                      TIMEOUT, USER_AGENT, WEB_CHECK, Answer, BadAddress, Refused, Spent,
                      Unreachable, __version__, address_refused, check_url, family, host_of,
