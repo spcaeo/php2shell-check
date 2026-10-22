@@ -14,6 +14,8 @@ tells you what it found. Every finding comes with the evidence, the URL it came 
 One Python file, standard library only, Python 3.9 or newer. MIT licence. (The source is
 the package [`php2shell_check/`](php2shell_check/); the single file is built from it.)
 
+Why we built this: [a scanner dressed as a visitor hunted our AI keys](https://skaldanalytics.com/security/ai-key-thief/).
+
 ## Quick start
 
 ```sh
