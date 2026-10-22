@@ -7,7 +7,7 @@ a major. A new advisory list alone is not a release: it goes in `advisories.json
 
 ## Unreleased
 
-## 1.0.1 (2026-10-22)
+## 1.1.0 (2026-10-22)
 
 From Skald's public check (2.22.1 and the fixes after it), ported with tests.
 

@@ -53,7 +53,7 @@ from urllib.parse import urljoin, urlsplit
 
 # ------------------------------------------------------------------ safety.py
 
-__version__ = "1.0.1"
+__version__ = "1.1.0"
 HOME = "https://github.com/spcaeo/php2shell-check"
 USER_AGENT = f"php2shell-check/{__version__} (+{HOME})"
 ADVISORIES_URL = "https://raw.githubusercontent.com/spcaeo/php2shell-check/main/advisories.json"

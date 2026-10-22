@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "php2shell-check"
-version = "1.0.1"
+version = "1.1.0"
 description = "Is your site exposed to the October 2026 PHP flaws (php2shell, CVE-2026-109618/109619)? Reads what your home page shows anyone, with evidence for every finding."
 readme = "README.md"
 license = {text = "MIT"}

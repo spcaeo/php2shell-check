@@ -127,7 +127,7 @@ php2shell-check URL [--json] [--fail-on update_needed|check|any] [--timeout 10]
 | `--fail-on LEVEL` | For CI: exit 1 when a finding is at or above the level. `update_needed`: a version read that needs the fix. `check`: also a hidden version, an open login page, or something that could not be checked. `any`: also tips. |
 | `--timeout SECONDS` | Per request (default 10). |
 | `--max-requests N` | Requests in all, redirects included (default 8). |
-| `--user-agent UA` | The User-Agent sent (default `php2shell-check/1.0.1 (+https://github.com/spcaeo/php2shell-check)`). |
+| `--user-agent UA` | The User-Agent sent (default `php2shell-check/1.1.0 (+https://github.com/spcaeo/php2shell-check)`). |
 | `--advisories-url URL` | Load a newer advisory list (https JSON). Off by default. |
 | `--allow-private` | Check a site of your own network (see Safety). |
 | `--write-json`, `--write-markdown` | Also write the JSON answer, or a Markdown report, to a file. |
