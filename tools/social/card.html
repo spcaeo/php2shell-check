@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>php2shell-check social preview</title>
+<style>
+/* 1280 x 640, the GitHub social preview. Skald's share-card style: dark, high contrast, problem first. */
+html, body { margin: 0; }
+body { width: 1280px; height: 640px; overflow: hidden; position: relative; color: #f3f6f9; background: #0b1016;
+  font-family: ui-rounded, "SF Pro Rounded", system-ui, -apple-system, "Segoe UI", sans-serif; }
+.glow { position: absolute; inset: 0;
+  background: radial-gradient(48% 70% at 88% 12%, rgba(239, 107, 99, .40), transparent 70%),
+              radial-gradient(40% 60% at 70% 115%, rgba(217, 164, 64, .24), transparent 70%),
+              radial-gradient(36% 50% at 0% 0%, rgba(57, 135, 229, .18), transparent 70%); }
+.grid { position: absolute; inset: 0; opacity: .5;
+  background-image: linear-gradient(rgba(243, 246, 249, .05) 1px, transparent 1px),
+                    linear-gradient(90deg, rgba(243, 246, 249, .05) 1px, transparent 1px);
+  background-size: 48px 48px; }
+.in { position: relative; height: 100%; box-sizing: border-box; padding: 52px 64px; }
+.brand { display: flex; align-items: center; gap: 14px; font-weight: 750; font-size: 28px; letter-spacing: -.02em; }
+.mark { width: 42px; height: 42px; border-radius: 11px; background: #f3f6f9; color: #0b1016; display: grid;
+  place-items: center; font: 800 20px/1 ui-monospace, Menlo, monospace; }
+.badge { position: absolute; left: 64px; top: 122px; display: inline-block; padding: 9px 16px; border-radius: 999px;
+  font: 800 22px/1 system-ui, sans-serif; letter-spacing: .06em; text-transform: uppercase; color: #fff;
+  background: #d23a32; box-shadow: 0 0 0 6px rgba(210, 58, 50, .22); }
+h1 { position: absolute; left: 64px; top: 176px; margin: 0; font-weight: 850; font-size: 92px; letter-spacing: -.045em; line-height: 1; }
+.line { position: absolute; left: 64px; top: 290px; width: 1100px; font: 600 32px/1.3 system-ui, sans-serif; color: #dbe3ea; }
+.term { position: absolute; left: 64px; right: 64px; top: 372px; background: #141c24; border: 1px solid rgba(243, 246, 249, .14);
+  border-left: 8px solid #ef6b63; border-radius: 18px; box-shadow: 0 30px 80px -20px rgba(0, 0, 0, .8);
+  padding: 22px 26px; font: 600 18.5px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; color: #f3f6f9; white-space: pre; }
+.term .p { color: #8b98a5; }
+.term .ok { color: #ef6b63; font-weight: 800; }
+.foot { position: absolute; left: 64px; right: 64px; bottom: 44px; display: flex; justify-content: space-between;
+  font: 650 24px/1 system-ui, sans-serif; color: #c9d3dd; }
+.foot b { color: #fff; }
+</style></head>
+<body><div class="glow"></div><div class="grid"></div>
+<div class="in">
+  <div class="brand"><span class="mark">&gt;_</span> php2shell-check</div>
+  <span class="badge">CVE-2026-109618 · CVE-2026-109619 · CVSS 9.2</span>
+  <h1>Is your site exposed?</h1>
+  <div class="line">The October 2026 PHP flaws, checked from outside, with evidence.</div>
+  <div class="term"><span class="p">$</span> curl -sSL https://raw.githubusercontent.com/spcaeo/php2shell-check/main/php2shell_check.py \
+    | python3 - <b>example.com</b></div>
+  <div class="foot"><span><b>github.com</b>/spcaeo/php2shell-check</span><span>MIT · zero dependencies · GitHub Action</span></div>
+</div></body></html>

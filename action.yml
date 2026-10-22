@@ -1,0 +1,81 @@
+name: "php2shell-check"
+description: "Is your site exposed to php2shell (CVE-2026-109618/109619)? Reads what your home page shows anyone, with evidence for every finding."
+author: "Space-O Technologies"
+branding:
+  icon: "shield"
+  color: "red"
+
+inputs:
+  url:
+    description: "The site to check: example.com or https://www.example.com/"
+    required: true
+  fail-on:
+    description: "Fail the step on a finding at or above this level: update_needed (a version read that needs the fix), check (also a hidden version or an open login page), any (also tips), or none."
+    required: false
+    default: "update_needed"
+  json-output:
+    description: "A path to write the JSON answer to (empty: a file in the runner's temp folder, given as the json-file output)."
+    required: false
+    default: ""
+  python-version:
+    description: "The Python used to run the check (3.9 or newer). It does not change the job's own Python."
+    required: false
+    default: "3.12"
+
+outputs:
+  exit-code:
+    description: "0 clean, 1 findings at or above fail-on, 2 could not check"
+    value: ${{ steps.check.outputs.exit-code }}
+  summary:
+    description: "The one-line summary"
+    value: ${{ steps.check.outputs.summary }}
+  json-file:
+    description: "The path of the JSON answer"
+    value: ${{ steps.check.outputs.json-file }}
+
+runs:
+  using: "composite"
+  steps:
+    - id: python
+      uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+      with:
+        python-version: ${{ inputs.python-version }}
+        update-environment: false
+
+    - id: check
+      shell: bash
+      env:
+        P2S_URL: ${{ inputs.url }}
+        P2S_FAIL_ON: ${{ inputs.fail-on }}
+        P2S_JSON: ${{ inputs.json-output }}
+        P2S_PYTHON: ${{ steps.python.outputs.python-path }}
+        P2S_SCRIPT: ${{ github.action_path }}/php2shell_check.py
+      run: |
+        set +e
+        json="${P2S_JSON:-$RUNNER_TEMP/php2shell-check.json}"
+        md="$RUNNER_TEMP/php2shell-check.md"
+        rm -f "$json" "$md"
+        args=("$P2S_URL" --color always --write-json "$json" --write-markdown "$md")
+        case "$P2S_FAIL_ON" in
+          update_needed|check|any) args+=(--fail-on "$P2S_FAIL_ON") ;;
+          none|"") ;;
+          *) echo "::error::fail-on must be update_needed, check, any or none"; exit 2 ;;
+        esac
+        "$P2S_PYTHON" "$P2S_SCRIPT" "${args[@]}"
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ -s "$md" ]; then
+          cat "$md" >> "$GITHUB_STEP_SUMMARY"
+        else
+          echo "### php2shell-check could not check \`$P2S_URL\` (see the step's log)" >> "$GITHUB_STEP_SUMMARY"
+        fi
+        if [ -s "$json" ]; then
+          echo "json-file=$json" >> "$GITHUB_OUTPUT"
+          line="$("$P2S_PYTHON" -c 'import json,sys; a=json.load(open(sys.argv[1])); print(a.get("summary") or "Could not check: %s" % a.get("error"))' "$json")"
+          echo "summary=${line//$'\n'/ }" >> "$GITHUB_OUTPUT"
+        fi
+        case "$code" in
+          1) echo "::error::php2shell-check: findings at or above '$P2S_FAIL_ON' (see the job summary)" ;;
+          2) echo "::error::php2shell-check could not check $P2S_URL" ;;
+        esac
+        exit "$code"

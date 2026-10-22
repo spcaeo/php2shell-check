@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+build/
+dist/
+*.egg-info/
+.venv/
+php2shell-check.json

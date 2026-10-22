@@ -1,0 +1,52 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }}
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Unit tests (no network)
+        run: python -m unittest -v
+      - name: The file runs on its own
+        run: python -I php2shell_check.py --version && python -I - --version < php2shell_check.py
+
+  action:
+    name: The GitHub Action on our own site
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - id: check
+        uses: ./
+        with:
+          url: skaldanalytics.com
+          fail-on: update_needed
+          json-output: php2shell-check.json
+      - name: Its outputs
+        env:
+          CODE: ${{ steps.check.outputs.exit-code }}
+          SUMMARY: ${{ steps.check.outputs.summary }}
+          JSON: ${{ steps.check.outputs.json-file }}
+        run: |
+          echo "exit code $CODE: $SUMMARY"
+          test "$CODE" = 0
+          test -s "$JSON"
